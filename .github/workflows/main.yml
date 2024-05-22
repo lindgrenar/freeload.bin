@@ -47,11 +47,11 @@ jobs:
 
     - name: Generate Keystore
       run: |
-        keytool -genkey -v -keystore my-release-key.keystore -alias alias_name -keyalg RSA -keysize 2048 -validity 10000 -storepass password -keypass password -dname "CN=, OU=, O=, L=, S=, C="
+        keytool -genkey -v -keystore /home/runner/.android/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
 
     - name: Build APK
       run: |
-        cd myapp && apkc build --keystore "./my-release-key.keystore" --storepass "password" --keyalias "alias_name"
+        cd myapp && apkc build --keystore "/home/runner/.android/debug.keystore" --storepass "android" --keyalias "androiddebugkey"
 
     - name: Upload APK to GitHub Releases
       uses: actions/upload-release-asset@v1
