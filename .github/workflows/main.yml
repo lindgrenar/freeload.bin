@@ -45,8 +45,13 @@ jobs:
       run: |
         echo -e "com.myapp\nMy App\n" | apkc create myapp
 
+    - name: Generate Keystore
+      run: |
+        keytool -genkey -v -keystore my-release-key.keystore -alias alias_name -keyalg RSA -keysize 2048 -validity 10000 -storepass password -keypass password -dname "CN=, OU=, O=, L=, S=, C="
+
     - name: Build APK
-      run: cd myapp && apkc build
+      run: |
+        cd myapp && apkc build --keystore "./my-release-key.keystore" --storepass "password" --keyalias "alias_name"
 
     - name: Upload APK to GitHub Releases
       uses: actions/upload-release-asset@v1
