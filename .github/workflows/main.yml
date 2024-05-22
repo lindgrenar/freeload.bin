@@ -1,3 +1,6 @@
+Here is an updated GitHub Actions workflow that should meet your requirements. This workflow will trigger manually (on demand), install JDK and Android SDK, set up the necessary environment variables, verify the paths using the `doctor` command, create a new project, build the APK, and upload it to GitHub releases.
+
+```yaml
 name: Build and Release APK
 
 on:
@@ -25,10 +28,16 @@ jobs:
         echo "JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))" >> $GITHUB_ENV
         echo "ANDROID_HOME=${HOME}/android-sdk" >> $GITHUB_ENV
 
+    - name: Install apkc
+      run: |
+        wget https://github.com/ajinasokan/apkc/releases/download/v0.4.1/apkc_0.4.1_linux_amd64.tar.gz
+        tar -xzf apkc_0.4.1_linux_amd64.tar.gz
+        sudo mv apkc /usr/local/bin/
+
     - name: Verify paths
       run: apkc doctor
 
-    - name: Create project
+    - name: Create new project
       run: apkc create myapp
 
     - name: Build APK
@@ -39,7 +48,12 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./myapp/build/myapp.apk
-        asset_name: myapp.apk
+        upload_url: ${{ github.event.repository.upload_url }}
+        asset_path: ./myapp/build/app-release.apk
+        asset_name: app-release.apk
         asset_content_type: application/vnd.android.package-archive
+```
+
+This workflow assumes that the APK is output to `./myapp/build/app-release.apk`. If your build process outputs the APK to a different location, please update the `asset_path` in the "Upload APK to GitHub Releases" step accordingly.
+
+I hope this helps! Let me know if you have any questions or need further assistance.
