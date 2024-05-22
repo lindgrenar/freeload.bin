@@ -24,7 +24,7 @@ jobs:
       run: |
         echo "y" | sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --install "build-tools;30.0.3"
         echo "Installed build tools at /usr/local/lib/android/sdk/build-tools/30.0.3"
-        
+
     - name: Set up environment variables
       run: |
         echo "JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))" >> $GITHUB_ENV
@@ -40,6 +40,9 @@ jobs:
 
     - name: Verify paths
       run: apkc doctor
+
+    - name: Create src directory if it doesn't exist
+      run: mkdir -p myapp/src
 
     - name: Create new project
       run: apkc create myapp
