@@ -35,7 +35,7 @@ jobs:
     - name: Install apkc
       run: |
         wget https://github.com/ajinasokan/apkc/releases/download/v0.4.1/apkc_0.4.1_linux_amd64.tar.gz
-        tar -xzf apkc_0.4.1_linux_amd64.tar.gz
+        tar -xzf apkc_0.4.1_linux_amd64.tar.gz 
         sudo mv apkc /usr/local/bin/
 
     - name: Verify paths
