@@ -35,7 +35,7 @@ jobs:
     - name: Install apkc
       run: |
         wget https://github.com/ajinasokan/apkc/releases/download/v0.4.1/apkc_0.4.1_linux_amd64.tar.gz
-        tar -xzf apkc_0.4.1_linux_amd64.tar.gz 
+        tar -xzf apkc_0.4.1_linux_amd64.tar.gz
         sudo mv apkc /usr/local/bin/
 
     - name: Verify paths
@@ -53,12 +53,23 @@ jobs:
       run: |
         cd myapp && apkc build --keystore "/home/runner/.android/debug.keystore" --storepass "android" --keyalias "androiddebugkey"
 
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.run_id }}
+        release_name: Release ${{ github.run_id }}
+        draft: false
+        prerelease: false
+
     - name: Upload APK to GitHub Releases
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ github.event.repository.upload_url }}
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./myapp/build/app-release.apk
-        asset_name: app-release.apk
+        asset_name: app-release-${{ github.run_id }}.apk
         asset_content_type: application/vnd.android.package-archive
