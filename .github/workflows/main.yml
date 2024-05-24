@@ -44,6 +44,7 @@ jobs:
 
     - name: Build APK
       run: |
+        chmod -R ugo+rwX ${GITHUB_WORKSPACE}
         cd ${GITHUB_WORKSPACE}/src && ${GITHUB_WORKSPACE}/tools/apkc build --keystore "/home/runner/.android/debug.keystore" --storepass "android" --keyalias "androiddebugkey"
 
     - name: Create Release
