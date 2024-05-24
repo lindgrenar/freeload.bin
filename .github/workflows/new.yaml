@@ -4,66 +4,93 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  setup:
     runs-on: ubuntu-latest
+    outputs:
+      java-path: ${{ steps.set-env.outputs.JAVA_HOME }}
+      android-path: ${{ steps.set-env.outputs.ANDROID_HOME }}
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    - name: Set up JDK
-      uses: actions/setup-java@v2
-      with:
-        java-version: '11'
-        distribution: 'adopt'
+      - name: Cache Android build tools
+        uses: actions/cache@v2
+        with:
+          path: |
+            /usr/local/lib/android/sdk/build-tools
+          key: ${{ runner.os }}-build-tools-${{ hashFiles('**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-build-tools-
 
-    - name: Set up Android SDK
-      uses: android-actions/setup-android@v2
+      - name: Set up JDK 11
+        uses: actions/setup-java@v2
+        with:
+          java-version: '11'
+          distribution: 'adopt'
 
-    - name: Install Android build tools
-      run: |
-        echo "y" | sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --install "build-tools;30.0.3"
-        echo "Installed build tools at /usr/local/lib/android/sdk/build-tools/30.0.3"
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v2
 
-    - name: Set up environment variables
-      run: |
-        echo "JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))" >> $GITHUB_ENV
-        echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
-        echo "Set JAVA_HOME to ${JAVA_HOME}"
-        echo "Set ANDROID_HOME to ${ANDROID_HOME}"
-        
-    - name: Verify paths
-      run: |
-        cd ${GITHUB_WORKSPACE}/tools
-        chmod +x apkc
-        ./apkc doctor
+      - name: Install Android build tools
+        run: |
+          if [ ! -d "/usr/local/lib/android/sdk/build-tools/30.0.3" ]; then
+            echo "y" | sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --install "build-tools;30.0.3"
+          fi
+          echo "Installed build tools at /usr/local/lib/android/sdk/build-tools/30.0.3"
 
-    - name: Generate Keystore
-      run: |
-        keytool -genkey -v -keystore /home/runner/.android/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
+      - name: Set up environment variables
+        id: set-env
+        run: |
+          echo "JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))" >> $GITHUB_ENV
+          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+          echo "::set-output name=JAVA_HOME::$(dirname $(dirname $(readlink -f $(which javac))))"
+          echo "::set-output name=ANDROID_HOME::/usr/local/lib/android/sdk"
 
-    - name: Build APK
-      run: |
-        chmod -R ugo+rwX ${GITHUB_WORKSPACE}
-        cd ${GITHUB_WORKSPACE}/src && ${GITHUB_WORKSPACE}/tools/apkc build --keystore "/home/runner/.android/debug.keystore" --storepass "android" --keyalias "androiddebugkey"
+  verify:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify paths
+        run: |
+          cd ${GITHUB_WORKSPACE}/tools
+          chmod +x apkc
+          ./apkc doctor
 
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.run_id }}
-        release_name: Release ${{ github.run_id }}
-        draft: false
-        prerelease: false
+  build:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Keystore
+        run: |
+          keytool -genkey -v -keystore /home/runner/.android/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
 
-    - name: Upload APK to GitHub Releases
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./${{ github.workspace }}/src/build/app-release.apk
-        asset_name: app-release-${{ github.run_id }}.apk
-        asset_content_type: application/vnd.android.package-archive
+      - name: Build APK
+        run: |
+          chmod -R 777 ${GITHUB_WORKSPACE}/src
+          cd ${GITHUB_WORKSPACE}/src && ${GITHUB_WORKSPACE}/tools/apkc build --keystore "/home/runner/.android/debug.keystore" --storepass "android" --keyalias "androiddebugkey"
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.run_id }}
+          release_name: Release ${{ github.run_id }}
+          draft: false
+          prerelease: false
+
+      - name: Upload APK to GitHub Releases
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ github.workspace }}/src/build/app-release.apk
+          asset_name: app-release-${{ github.run_id }}.apk
+          asset_content_type: application/vnd.android.package-archive
