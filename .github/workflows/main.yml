@@ -11,9 +11,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Set execute permissions for apkc
-      run: chmod -R ugo+rwX ${GITHUB_WORKSPACE}/
-
     - name: Set up JDK
       uses: actions/setup-java@v2
       with:
@@ -36,7 +33,9 @@ jobs:
         echo "Set ANDROID_HOME to ${ANDROID_HOME}"
 
     - name: Verify paths
-      run: ${GITHUB_WORKSPACE}/tools/apkc doctor
+      run: |
+        chmod -R ugo+rwX ${GITHUB_WORKSPACE}/
+        ${GITHUB_WORKSPACE}/tools/apkc doctor
 
     - name: Generate Keystore
       run: |
