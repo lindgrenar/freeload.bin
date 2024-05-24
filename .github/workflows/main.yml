@@ -37,11 +37,6 @@ jobs:
         cd ${GITHUB_WORKSPACE}/tools
         chmod +x apkc
         ./apkc doctor
-      
-    - name: Verify paths
-      run: |
-        echo "y" | sudo chmod -R ugo+rwX ${GITHUB_WORKSPACE}/
-        echo "${GITHUB_WORKSPACE}/tools/apkc doctor"
 
     - name: Generate Keystore
       run: |
