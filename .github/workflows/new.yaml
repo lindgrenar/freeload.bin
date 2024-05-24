@@ -55,9 +55,19 @@ jobs:
       - name: Verify paths
         run: |
           echo "Checking GITHUB_WORKSPACE: ${GITHUB_WORKSPACE}"
-          cd ${GITHUB_WORKSPACE}/tools || exit 1
-          chmod +x apkc || exit 1
-          ./apkc doctor || exit 1
+          if [ -d "${GITHUB_WORKSPACE}/tools" ]; then
+            cd ${GITHUB_WORKSPACE}/tools || exit 1
+            if [ -f "apkc" ]; then
+              chmod +x apkc || exit 1
+              ./apkc doctor || exit 1
+            else
+              echo "apkc tool not found in tools directory"
+              exit 1
+            fi
+          else
+            echo "tools directory not found in GITHUB_WORKSPACE"
+            exit 1
+          fi
 
   build:
     needs: verify
@@ -70,8 +80,13 @@ jobs:
       - name: Build APK
         run: |
           echo "Checking GITHUB_WORKSPACE: ${GITHUB_WORKSPACE}"
-          chmod -R 777 ${GITHUB_WORKSPACE}/src || exit 1
-          cd ${GITHUB_WORKSPACE}/src && ${GITHUB_WORKSPACE}/tools/apkc build --keystore "/home/runner/.android/debug.keystore" --storepass "android" --keyalias "androiddebugkey" || exit 1
+          if [ -d "${GITHUB_WORKSPACE}/src" ]; then
+            chmod -R 777 ${GITHUB_WORKSPACE}/src || exit 1
+            cd ${GITHUB_WORKSPACE}/src && ${GITHUB_WORKSPACE}/tools/apkc build --keystore "/home/runner/.android/debug.keystore" --storepass "android" --keyalias "androiddebugkey" || exit 1
+          else
+            echo "src directory not found in GITHUB_WORKSPACE"
+            exit 1
+          fi
 
   release:
     needs: build
