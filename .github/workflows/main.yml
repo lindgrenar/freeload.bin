@@ -32,11 +32,11 @@ jobs:
         echo "Set JAVA_HOME to ${JAVA_HOME}"
         echo "Set ANDROID_HOME to ${ANDROID_HOME}"
         
-    - name: Set execute permissions for the GitHub Workspace
-      run: chmod -R ugo+rwX ${GITHUB_WORKSPACE}/
-      
-    - name: Set execute permissions for apkc
-      run: chmod +x ${GITHUB_WORKSPACE}/tools/apkc
+    - name: Verify paths
+      run: |
+        cd ${GITHUB_WORKSPACE}/tools
+        chmod +x apkc
+        ./apkc doctor
       
     - name: Verify paths
       run: |
