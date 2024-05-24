@@ -12,7 +12,7 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Set execute permissions for apkc
-      run: chmod +x ${GITHUB_WORKSPACE}/tools/apkc
+      run: chmod -R ugo+rwX .
 
     - name: Set up JDK
       uses: actions/setup-java@v2
