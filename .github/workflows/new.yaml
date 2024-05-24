@@ -34,6 +34,7 @@ jobs:
 
       - name: Install Android build tools
         run: |
+          echo "Checking ANDROID_HOME: ${ANDROID_HOME}"
           if [ ! -d "/usr/local/lib/android/sdk/build-tools/30.0.3" ]; then
             echo "y" | sudo ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --install "build-tools;30.0.3"
           fi
@@ -53,9 +54,10 @@ jobs:
     steps:
       - name: Verify paths
         run: |
-          cd ${GITHUB_WORKSPACE}/tools
-          chmod +x apkc
-          ./apkc doctor
+          echo "Checking GITHUB_WORKSPACE: ${GITHUB_WORKSPACE}"
+          cd ${GITHUB_WORKSPACE}/tools || exit 1
+          chmod +x apkc || exit 1
+          ./apkc doctor || exit 1
 
   build:
     needs: verify
@@ -67,8 +69,9 @@ jobs:
 
       - name: Build APK
         run: |
-          chmod -R 777 ${GITHUB_WORKSPACE}/src
-          cd ${GITHUB_WORKSPACE}/src && ${GITHUB_WORKSPACE}/tools/apkc build --keystore "/home/runner/.android/debug.keystore" --storepass "android" --keyalias "androiddebugkey"
+          echo "Checking GITHUB_WORKSPACE: ${GITHUB_WORKSPACE}"
+          chmod -R 777 ${GITHUB_WORKSPACE}/src || exit 1
+          cd ${GITHUB_WORKSPACE}/src && ${GITHUB_WORKSPACE}/tools/apkc build --keystore "/home/runner/.android/debug.keystore" --storepass "android" --keyalias "androiddebugkey" || exit 1
 
   release:
     needs: build
