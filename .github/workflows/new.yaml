@@ -54,20 +54,9 @@ jobs:
     steps:
       - name: Verify paths
         run: |
-          echo "Checking GITHUB_WORKSPACE: ${GITHUB_WORKSPACE}"
-          if [ -d "${GITHUB_WORKSPACE}/tools" ]; then
-            cd ${GITHUB_WORKSPACE}/tools || exit 1
-            if [ -f "apkc" ]; then
-              chmod +x apkc || exit 1
-              ./apkc doctor || exit 1
-            else
-              echo "apkc tool not found in tools directory"
-              exit 1
-            fi
-          else
-            echo "tools directory not found in GITHUB_WORKSPACE"
-            exit 1
-          fi
+          cd /tools
+          chmod +x apkc
+          ./apkc doctor
 
   build:
     needs: verify
