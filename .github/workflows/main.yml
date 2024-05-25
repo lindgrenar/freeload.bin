@@ -1,3 +1,14 @@
+name: Build and Release APKon:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
 name: Build and Release APK
 
 on:
@@ -20,7 +31,7 @@ jobs:
     - name: Set up Android SDK
       uses: android-actions/setup-android@v3
       with:
-        components: build-tools;33.0.2  # Latest stable build tools as of May 2024
+        components: build-tools;33.0.2
 
     - name: Verify APKC
       working-directory: tools
@@ -31,22 +42,11 @@ jobs:
     - name: Generate Keystore  
       run: |
         keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
-      
-    - name: Build APK
-      run: |
-        cd src
-        ../tools/apkc build --keystore "../debug.keystore" --storepass "android" --keyalias "androiddebugkey"
 
-    - name: Upload APK to GitHub Releases
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: src/build/app-release.apk   
-        asset_name: app-release-${{ github.run_id }}.apk
-        asset_content_type: application/vnd.android.package-archive
- 
+    - name: Build APK
+      working-directory: ${{ github.workspace }}/src  # Use the workspace as reference to navigate to src
+      run: ../tools/apkc build --keystore "../debug.keystore" --storepass "android" --keyalias "androiddebugkey"
+
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
@@ -62,6 +62,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: build/app-release.apk 
+        asset_path: ${{ github.workspace }}/src/build/app-release.apk  
         asset_name: app-release-${{ github.run_id }}.apk
         asset_content_type: application/vnd.android.package-archive
