@@ -31,9 +31,7 @@ jobs:
     - name: Generate Keystore  
       run: |
         keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
-
-      # ... (previous steps) ...
-
+      
     - name: Build APK
       run: |
         cd src
@@ -49,7 +47,7 @@ jobs:
         asset_name: app-release-${{ github.run_id }}.apk
         asset_content_type: application/vnd.android.package-archive
  
-   - name: Create Release
+    - name: Create Release
       id: create_release
       uses: actions/create-release@v1
       env:
