@@ -33,7 +33,7 @@ jobs:
 
     - name: Build APK
       working-directory: ${{ github.workspace }}/src 
-      run: apkc build --keystore "../debug.keystore" --storepass "android" --keyalias "androiddebugkey"
+      run: ../tools/apkc build --keystore "../debug.keystore" --storepass "android" --keyalias "androiddebugkey"
 
     - name: Create Release
       id: create_release
