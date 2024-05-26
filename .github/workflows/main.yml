@@ -1,41 +1,62 @@
 name: Build and Release APK
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main  # Trigger the workflow on pushes to the main branch
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env: 
+      APK_NAME: app-release.apk
+      KEYSTORE_PATH: debug.keystore
 
     steps:
-    - name: Checkout code
+    - name: Checkout Code
       uses: actions/checkout@v3
 
-    - name: Set up JDK
+    - name: Set Up JDK (with Caching)
       uses: actions/setup-java@v3
       with:
         java-version: 17
         distribution: 'temurin'
+        cache: 'gradle'  
 
-    - name: Set up Android SDK
+    - name: Set Up Android SDK (with Caching)
       uses: android-actions/setup-android@v3
       with:
         components: build-tools;33.0.2
 
-    - name: Verify and Prepare APKC
-      working-directory: ${{ github.workspace }}
+    - name: Verify APKC
+      working-directory: ${{ github.workspace }}/tools # Change to tools directory
       run: |
-        chmod +x /tools/apkc
-        echo "/tools" >> $GITHUB_PATH
-        cd tools 
+        chmod +x apkc
+        echo "${{ github.workspace }}/tools" >> $GITHUB_PATH
         apkc doctor
+    
+    - name: Download Keystore (if available)
+      id: download_keystore
+      uses: actions/download-artifact@v3
+      with:
+        name: keystore
 
-    - name: Generate Keystore  
-      run: keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
+    - name: Generate Keystore (if not available)
+      if: steps.download_keystore.outcome == 'failure' # Only run if download failed
+      run: |
+        keytool -genkey -v -keystore ${{ github.workspace }}/${{ env.KEYSTORE_PATH }} -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass ${{ secrets.KEYSTORE_PASSWORD }} -keypass ${{ secrets.KEY_PASSWORD }} -dname "CN=Android Debug,O=Android,C=US" 
+        echo "Keystore generated successfully!"
+
+    - name: Upload Keystore (if generated)
+      if: steps.download_keystore.outcome == 'failure' 
+      uses: actions/upload-artifact@v3
+      with:
+        name: keystore
+        path: ${{ github.workspace }}/${{ env.KEYSTORE_PATH }}
 
     - name: Build APK
-      working-directory: ${{ github.workspace }}/src 
-      run: ../tools/apkc build --keystore "../debug.keystore" --storepass "android" --keyalias "androiddebugkey"
+      working-directory: ${{ github.workspace }}/src # Change to src directory
+      run: ../tools/apkc build . --keystore "${{ github.workspace }}/${{ env.KEYSTORE_PATH }}" --storepass "${{ secrets.KEYSTORE_PASSWORD }}" --keyalias "androiddebugkey"
 
     - name: Create Release
       id: create_release
@@ -43,8 +64,9 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.run_id }}
-        release_name: Release ${{ github.run_id }}
+        tag_name: release-${{ github.sha }}
+        release_name: Release ${{ github.sha }}
+        draft: false
 
     - name: Upload APK to GitHub Releases
       uses: actions/upload-release-asset@v1
@@ -52,6 +74,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ github.workspace }}/src/build/app-release.apk  
-        asset_name: app-release-${{ github.run_id }}.apk
+        asset_path: ${{ github.workspace }}/src/build/${{ env.APK_NAME }}
+        asset_name: ${{ env.APK_NAME }}
         asset_content_type: application/vnd.android.package-archive
