@@ -23,10 +23,11 @@ jobs:
         components: build-tools;33.0.2
 
     - name: Verify and Prepare APKC
+      working-directory: ${{ github.workspace }}
       run: |
         chmod +x ./tools/apkc
         echo "./tools" >> $GITHUB_PATH
-        apkc doctor
+        ./tools apkc doctor
 
     - name: Generate Keystore  
       run: keytool -genkey -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
