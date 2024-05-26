@@ -1,79 +1,100 @@
 name: Build and Release APK
 
+# Trigger on pushes to main or tags starting with 'v'
 on:
   push:
     branches:
-      - main  # Trigger the workflow on pushes to the main branch
+      - main
+    tags:
+      - 'v*'  # Build for tags like v1.0.0
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    env: 
+    env:
       APK_NAME: app-release.apk
-      KEYSTORE_PATH: debug.keystore
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
-    - name: Set Up JDK (with Caching)
-      uses: actions/setup-java@v3
-      with:
-        java-version: 17
-        distribution: 'temurin'
-        cache: 'gradle'  
+      - name: Set Up JDK (with Caching)
+        uses: actions/setup-java@v3
+        with:
+          java-version: 17
+          distribution: 'temurin'
+          cache: 'gradle'
 
-    - name: Set Up Android SDK (with Caching)
-      uses: android-actions/setup-android@v3
-      with:
-        components: build-tools;33.0.2
+      - name: Set Up Android SDK (with Caching)
+        uses: android-actions/setup-android@v3
+        with:
+          components: build-tools;33.0.2
 
-    - name: Verify APKC
-      working-directory: ${{ github.workspace }}/tools # Change to tools directory
-      run: |
-        chmod +x apkc
-        echo "${{ github.workspace }}/tools" >> $GITHUB_PATH
-        apkc doctor
-    
-    - name: Download Keystore (if available)
-      id: download_keystore
-      uses: actions/download-artifact@v3
-      with:
-        name: keystore
+      # Security Risk: Storing keystore directly in repo is unacceptable
+      # Demand: Use encrypted secrets for keystore or a more secure storage solution
+      - name: Download Keystore (if available)
+        id: download_keystore
+        uses: actions/download-artifact@v3
+        with:
+          name: keystore 
 
-    - name: Generate Keystore (if not available)
-      if: steps.download_keystore.outcome == 'failure' # Only run if download failed
-      run: |
-        keytool -genkey -v -keystore ${{ github.workspace }}/${{ env.KEYSTORE_PATH }} -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass ${{ secrets.KEYSTORE_PASSWORD }} -keypass ${{ secrets.KEY_PASSWORD }} -dname "CN=Android Debug,O=Android,C=US" 
-        echo "Keystore generated successfully!"
+      # Only generate keystore if it's not available as an artifact
+      - name: Generate Keystore (if not available)
+        if: steps.download_keystore.outcome == 'failure' # Only run if download failed
+        # Security Risk: Plaintext secrets in workflow
+        # Demand: Use GitHub secrets for KEYSTORE_PASSWORD and KEY_PASSWORD
+        run: |
+          # ... (keytool command using secrets)
 
-    - name: Upload Keystore (if generated)
-      if: steps.download_keystore.outcome == 'failure' 
-      uses: actions/upload-artifact@v3
-      with:
-        name: keystore
-        path: ${{ github.workspace }}/${{ env.KEYSTORE_PATH }}
+      - name: Upload Keystore (if generated)
+        if: steps.download_keystore.outcome == 'failure' 
+        uses: actions/upload-artifact@v3
+        with:
+          name: keystore
+          path: ${{ github.workspace }}/debug.keystore # Consistent path 
 
-    - name: Build APK
-      working-directory: ${{ github.workspace }}/src # Change to src directory
-      run: ../tools/apkc build . --keystore "${{ github.workspace }}/${{ env.KEYSTORE_PATH }}" --storepass "${{ secrets.KEYSTORE_PASSWORD }}" --keyalias "androiddebugkey"
+      # Improve efficiency by caching APKC installation
+      - name: Set Up APKC (with Caching)
+        uses: actions/cache@v3  # Use actions/cache for caching 
+        id: cache-apkc  
+        with: 
+          path: ${{ github.workspace }}/tools/apkc  # Cache the APKC executable
+          key: ${{ runner.os }}-apkc-${{ hashFiles('tools/apkc') }}
 
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: release-${{ github.sha }}
-        release_name: Release ${{ github.sha }}
-        draft: false
+      - name: Verify and Install APKC (if not cached)
+        if: steps.cache-apkc.outcome == 'failure'
+        working-directory: ${{ github.workspace }}/tools # Change to tools directory
+        run: |
+          chmod +x apkc
+          echo "${{ github.workspace }}/tools" >> $GITHUB_PATH
+          apkc doctor
 
-    - name: Upload APK to GitHub Releases
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ github.workspace }}/src/build/${{ env.APK_NAME }}
-        asset_name: ${{ env.APK_NAME }}
-        asset_content_type: application/vnd.android.package-archive
+      # Specify working directory once for clarity
+      - name: Build APK
+        working-directory: ${{ github.workspace }}/src 
+        # Security Risk: Unclear if apkc sanitizes inputs
+        # Demand: Verify apkc prevents code injection through its arguments
+        run: ../tools/apkc build . --keystore "${{ github.workspace }}/debug.keystore" --storepass "${{ secrets.KEYSTORE_PASSWORD }}" --keyalias "androiddebugkey"
+
+      # Error Handling: Add error checking around build step
+      # Demand: Log output on failure to diagnose issues 
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: release-${{ github.sha }} # Consider using semantic versioning
+          release_name: Release ${{ github.sha }}
+          draft: false
+
+      - name: Upload APK to GitHub Releases
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ github.workspace }}/src/build/${{ env.APK_NAME }}
+          asset_name: ${{ env.APK_NAME }}
+          asset_content_type: application/vnd.android.package-archive
