@@ -1,4 +1,4 @@
-name: Build and Release APK
+name: new
 
 on:
   workflow_dispatch:
