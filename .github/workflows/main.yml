@@ -24,8 +24,8 @@ jobs:
 
     - name: Verify and Prepare APKC
       run: |
-        chmod +x ${{ github.workspace }}/tools/apkc
-        echo "${{ github.workspace }}/tools" >> $GITHUB_PATH
+        chmod +x ./tools/apkc
+        echo "./tools" >> $GITHUB_PATH
         apkc doctor
 
     - name: Generate Keystore  
